@@ -30,24 +30,28 @@ from app.core.database import init_db
 from app.utils.formatters import setup_locale
 from app.services.category_service import CategoryService
 from app.services.account_service import AccountService
+from app.ui.theme import apply_theme
 
 def main():
     """Função principal para iniciar a aplicação."""
-    # 1. Configura o locale para formatação de moeda e datas
+    # 1. Aplica o tema visual da aplicação
+    apply_theme()
+
+    # 2. Configura o locale para formatação de moeda e datas
     setup_locale()
 
-    # 2. Inicializa o banco de dados (cria tabelas se não existirem)
+    # 3. Inicializa o banco de dados (cria tabelas se não existirem)
     print("Inicializando o banco de dados...")
     init_db()
     print("Banco de dados pronto.")
     
-    # 3. Popula com dados iniciais se necessário
+    # 4. Popula com dados iniciais se necessário
     print("Verificando dados iniciais...")
     CategoryService().get_or_create_initial_categories()
     AccountService().get_or_create_initial_accounts()
     print("Dados iniciais prontos.")
 
-    # 4. Inicia a aplicação de interface gráfica
+    # 5. Inicia a aplicação de interface gráfica
     app = MainWindow()
     app.create_widgets() # Cria os widgets após a inicialização
     app.mainloop()

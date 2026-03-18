@@ -8,6 +8,7 @@ from app.ui.views.reports_view import ReportsView
 from app.ui.views.categories_view import CategoriesView
 from app.ui.views.settings_view import SettingsView
 from app.ui.views.accounts_view import AccountsView
+from app.ui.theme import Theme
 
 class MainWindow(ctk.CTk):
     def __init__(self):
@@ -15,15 +16,15 @@ class MainWindow(ctk.CTk):
         self.title("Planner Financeiro")
         self.geometry("1200x780")
         self.minsize(960, 600)
+        
+        # Aplica a cor de fundo principal da janela
+        self.configure(fg_color=Theme.COLOR_BACKGROUND)
 
-        ctk.set_appearance_mode("System")
-        ctk.set_default_color_theme("blue")
-
+        # Configuração do grid layout
         self.grid_columnconfigure(1, weight=1)
         self.grid_rowconfigure(0, weight=1)
 
         self.views = {}
-        self.sidebar_buttons = {}
         self.current_view = None
 
     def create_widgets(self):
@@ -31,11 +32,10 @@ class MainWindow(ctk.CTk):
         
         # --- Sidebar ---
         self.sidebar_frame = Sidebar(master=self, controller=self, corner_radius=0)
-        self.sidebar_buttons = self.sidebar_frame.get_buttons()
 
         # --- Container para as Views ---
         self.main_view_container = ctk.CTkFrame(self, corner_radius=0, fg_color="transparent")
-        self.main_view_container.grid(row=0, column=1, sticky="nsew")
+        self.main_view_container.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
         self.main_view_container.grid_rowconfigure(0, weight=1)
         self.main_view_container.grid_columnconfigure(0, weight=1)
         
@@ -50,7 +50,8 @@ class MainWindow(ctk.CTk):
             (CategoriesView, "categories"),
             (SettingsView, "settings")
         ]:
-            view = ViewClass(self.main_view_container)
+            # As views devem ter o fundo da cor de "superfície"
+            view = ViewClass(self.main_view_container, fg_color=Theme.COLOR_SURFACE)
             self.views[name] = view
             view.grid(row=0, column=0, sticky="nsew", padx=0, pady=0)
 
@@ -59,22 +60,18 @@ class MainWindow(ctk.CTk):
 
     def show_view(self, view_name):
         """
-        Eleva a view especificada para o topo, atualiza o estado dos botões,
-        e chama o método on_show, se existir.
+        Eleva a view especificada para o topo e notifica a sidebar para
+        atualizar seu estado visual.
         """
-        # Itera sobre as views e eleva a que foi selecionada
         selected_view = self.views.get(view_name)
         if selected_view:
+            # Eleva a view para o topo
             selected_view.tkraise()
+            
+            # Notifica a sidebar sobre a mudança
+            self.sidebar_frame.set_active_view(view_name)
+
             # Chama o método on_show se a view o tiver
             if hasattr(selected_view, "on_show") and callable(getattr(selected_view, "on_show")):
                 selected_view.on_show()
 
-        # Atualiza o estado dos botões do sidebar
-        for name, button in self.sidebar_buttons.items():
-            if name == view_name:
-                # Botão ativo
-                button.configure(fg_color=button.cget("hover_color"))
-            else:
-                # Botão inativo
-                button.configure(fg_color="transparent")

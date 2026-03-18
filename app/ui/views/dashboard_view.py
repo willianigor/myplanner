@@ -1,7 +1,9 @@
 import customtkinter as ctk
 from app.services.report_service import ReportService
 from app.ui.widgets.matplotlib_chart import MatplotlibChart
+from app.ui.widgets.kpi_card import KPICard
 from app.utils.formatters import format_currency
+from app.ui.theme import Theme
 from datetime import date
 
 class DashboardView(ctk.CTkFrame):
@@ -12,59 +14,37 @@ class DashboardView(ctk.CTkFrame):
 
         # Layout
         self.grid_columnconfigure((0, 1), weight=1)
-        self.grid_rowconfigure(1, weight=1)
+        self.grid_rowconfigure(0, weight=0) # Linha dos KPIs com peso 0
+        self.grid_rowconfigure(1, weight=1) # Linha dos gráficos com peso 1
 
         # Widgets
         self._create_widgets()
-        self.on_show() # Carga inicial
 
     def _create_widgets(self):
-        # Frame de Resumo
-        summary_frame = ctk.CTkFrame(self, fg_color="transparent")
-        summary_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
-        summary_frame.grid_columnconfigure((0, 1, 2), weight=1)
-        self._create_summary_cards(summary_frame)
+        # --- Linha de KPIs ---
+        self._create_summary_cards()
 
-        # Gráfico de Pizza
-        self.pie_chart_frame = ctk.CTkFrame(self)
-        self.pie_chart_frame.grid(row=1, column=0, padx=(20,10), pady=10, sticky="nsew")
-        self.pie_chart_frame.grid_rowconfigure(0, weight=1)
-        self.pie_chart_frame.grid_columnconfigure(0, weight=1)
-        self.pie_chart = MatplotlibChart(self.pie_chart_frame)
-        self.pie_chart.pack(fill="both", expand=True, padx=10, pady=10)
+        # --- Linha de Gráficos ---
+        self.pie_chart = MatplotlibChart(self)
+        self.pie_chart.grid(row=1, column=0, padx=(20, 10), pady=(10, 20), sticky="nsew")
+        
+        self.bar_chart = MatplotlibChart(self)
+        self.bar_chart.grid(row=1, column=1, padx=(10, 20), pady=(10, 20), sticky="nsew")
 
-        # Gráfico de Barras
-        self.bar_chart_frame = ctk.CTkFrame(self)
-        self.bar_chart_frame.grid(row=1, column=1, padx=(10,20), pady=10, sticky="nsew")
-        self.bar_chart_frame.grid_rowconfigure(0, weight=1)
-        self.bar_chart_frame.grid_columnconfigure(0, weight=1)
-        self.bar_chart = MatplotlibChart(self.bar_chart_frame)
-        self.bar_chart.pack(fill="both", expand=True, padx=10, pady=10)
+    def _create_summary_cards(self):
+        """Cria os cards de KPI usando o novo widget KPICard."""
+        kpi_frame = ctk.CTkFrame(self, fg_color="transparent")
+        kpi_frame.grid(row=0, column=0, columnspan=2, padx=10, pady=(10, 0), sticky="ew")
+        kpi_frame.grid_columnconfigure((0, 1, 2), weight=1)
 
-    def _create_summary_cards(self, master):
-        # Card Saldo Atual
-        balance_card = ctk.CTkFrame(master)
-        balance_card.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
-        balance_card.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(balance_card, text="Saldo Atual", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(10,0))
-        self.balance_label = ctk.CTkLabel(balance_card, text="R$ 0,00", font=ctk.CTkFont(size=22))
-        self.balance_label.pack(pady=(0,10))
+        self.balance_card = KPICard(kpi_frame, title="Saldo Total Atual")
+        self.balance_card.grid(row=0, column=0, padx=10, sticky="ew")
 
-        # Card Receitas do Mês
-        income_card = ctk.CTkFrame(master)
-        income_card.grid(row=0, column=1, padx=10, pady=10, sticky="ew")
-        income_card.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(income_card, text="Receitas do Mês", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(10,0))
-        self.income_label = ctk.CTkLabel(income_card, text="R$ 0,00", font=ctk.CTkFont(size=22), text_color="green")
-        self.income_label.pack(pady=(0,10))
+        self.income_card = KPICard(kpi_frame, title="Receitas do Mês")
+        self.income_card.grid(row=0, column=1, padx=10, sticky="ew")
 
-        # Card Despesas do Mês
-        expense_card = ctk.CTkFrame(master)
-        expense_card.grid(row=0, column=2, padx=10, pady=10, sticky="ew")
-        expense_card.grid_columnconfigure(0, weight=1)
-        ctk.CTkLabel(expense_card, text="Despesas do Mês", font=ctk.CTkFont(size=16, weight="bold")).pack(pady=(10,0))
-        self.expense_label = ctk.CTkLabel(expense_card, text="R$ 0,00", font=ctk.CTkFont(size=22), text_color="red")
-        self.expense_label.pack(pady=(0,10))
+        self.expense_card = KPICard(kpi_frame, title="Despesas do Mês")
+        self.expense_card.grid(row=0, column=2, padx=10, sticky="ew")
 
     def on_show(self):
         """Atualiza todos os dados do dashboard quando a view é exibida."""
@@ -75,9 +55,10 @@ class DashboardView(ctk.CTkFrame):
     def _update_summary_cards(self):
         total_balance = self.service.get_total_balance()
         month_summary = self.service.get_current_month_summary()
-        self.balance_label.configure(text=format_currency(total_balance))
-        self.income_label.configure(text=format_currency(month_summary.get("income", 0)))
-        self.expense_label.configure(text=format_currency(month_summary.get("expense", 0)))
+        
+        self.balance_card.set_value(format_currency(total_balance))
+        self.income_card.set_value(format_currency(month_summary.get("income", 0)), color=Theme.COLOR_SUCCESS)
+        self.expense_card.set_value(format_currency(month_summary.get("expense", 0)), color=Theme.COLOR_ERROR)
 
     def _update_pie_chart(self):
         today = date.today()
@@ -86,7 +67,8 @@ class DashboardView(ctk.CTkFrame):
         if not expenses_data:
             self.pie_chart.figure.clear()
             ax = self.pie_chart.figure.add_subplot(111)
-            ax.text(0.5, 0.5, "Sem dados de despesas para este mês", ha='center', va='center')
+            self.pie_chart._apply_theme_to_axes(ax) # Aplica tema mesmo para o texto
+            ax.text(0.5, 0.5, "Sem dados de despesas para este mês", ha='center', va='center', color=Theme.COLOR_TEXT_SECONDARY, fontsize=12)
             self.pie_chart.canvas.draw()
             return
 
@@ -98,15 +80,21 @@ class DashboardView(ctk.CTkFrame):
         trend_data = self.service.get_monthly_income_expense_trend()
         
         if not trend_data:
+            self.bar_chart.figure.clear()
+            ax = self.bar_chart.figure.add_subplot(111)
+            self.bar_chart._apply_theme_to_axes(ax) # Aplica tema mesmo para o texto
+            ax.text(0.5, 0.5, "Não há dados suficientes para o gráfico de tendência", ha='center', va='center', color=Theme.COLOR_TEXT_SECONDARY, fontsize=12)
+            self.bar_chart.canvas.draw()
             return
 
         labels = list(trend_data.keys())
         incomes = [d['income'] for d in trend_data.values()]
         expenses = [d['expense'] for d in trend_data.values()]
         
-        data_for_chart = {
-            "Receitas": incomes,
-            "Despesas": expenses
-        }
-        self.bar_chart.plot_bar_chart(labels, data_for_chart, "Receitas vs. Despesas (Últimos 6 Meses)")
+        data_for_chart = { "Receitas": incomes, "Despesas": expenses }
+        
+        # Passando as cores do nosso tema para o gráfico de barras
+        bar_colors = [Theme.COLOR_SUCCESS, Theme.COLOR_ERROR]
+        
+        self.bar_chart.plot_bar_chart(labels, data_for_chart, "Receitas vs. Despesas (Últimos 6 Meses)", colors=bar_colors)
 
